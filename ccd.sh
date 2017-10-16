@@ -168,6 +168,9 @@ case $1 in
          _cd_cst $jump_path
      fi
      ;;
+     -a)
+     ${CCD_TABLE_PATH}${CCD_PROGRAM_NAME} -a
+     ;;
      *)
      _cd_cst $1
 esac

@@ -501,18 +501,161 @@ function _write_table_path
     eval vim ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
 }
 
-function _show_help
+
+# $1 if set,$1 will add to globalpath
+# $1 if not set, globalpath just sort
+function _add_path_to_global()
+{
+    local globalpath
+    local arg
+
+    touch ${CCD_TABLE_PATH}GLOBAL_PATH
+
+    if [ $# != 0 ]
+    then
+        globalpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} GLOBAL_PATH)
+        for arg in $globalpath
+        do
+            if [ $arg != 'LABEL_PATH' ]
+            then
+                echo 'GLOBAL_PATH='$arg >> ${CCD_TABLE_PATH}GLOBAL_PATH
+            fi
+        done
+
+        # write config to a tmp file
+        echo '# Here is to set the global path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        echo 'GLOBAL_PATH='$1 >> ${CCD_TABLE_PATH}GLOBAL_PATH
+        echo 'GLOBAL_PATH=LABEL_PATH' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        sort -bd ${CCD_TABLE_PATH}GLOBAL_PATH | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        # write config to a tmp file
+
+    else
+        globalpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} GLOBAL_PATH)
+        for arg in $globalpath
+        do
+            if [ $arg != 'LABEL_PATH' ]
+            then
+                echo 'GLOBAL_PATH='$arg >> ${CCD_TABLE_PATH}GLOBAL_PATH
+            fi
+        done
+
+        # write config to the tmp file
+        echo '# Here is to set the global path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        echo 'GLOBAL_PATH=LABEL_PATH' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        sort -bd ${CCD_TABLE_PATH}GLOBAL_PATH | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        # write config to the tmp file
+
+    fi
+    rm ${CCD_TABLE_PATH}GLOBAL_PATH
+}
+
+# $1 if set,$1 will add to label
+# $1 if not set, label just sort
+function _add_path_to_all_label()
+{
+    local labelname
+    local labelpath
+    local arg
+    local arg2
+    local arg3
+
+        # write config to the tmp file
+        echo '# Here is to set the label path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        # write config to the tmp file
+
+    labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
+    for arg in $labelname
+    do
+        touch ${CCD_TABLE_PATH}${arg}
+        labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
+        for arg2 in $labelpath
+        do
+            echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
+        done
+
+        if [ $# != 0 ]
+        then
+            if [ $1 == $arg ]
+            then
+                echo $1'='$2 >> ${CCD_TABLE_PATH}${arg}
+            fi
+        fi
+
+        # write config to the tmp file
+        echo LABEL_PATH_NAME=$arg >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        sort -bd ${CCD_TABLE_PATH}${arg} | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        # write config to the tmp file
+
+        rm ${CCD_TABLE_PATH}${arg}
+    done
+}
+
+# This function can add path to label
+# $1 which label you want to add
+# $2 the path
+function _add_path_to_label()
+{
+    if [ $1 == GLOBAL_PATH ]
+    then
+        _add_path_to_global $2
+        _add_path_to_all_label
+    else
+        _add_path_to_global
+        _add_path_to_all_label $1 $2
+    fi
+}
+
+function _add_path()
+{
+    declare -a addlabelnamearray
+
+    local addlabelname
+    local arg
+    local PWD_CCD
+    PWD_CCD=$(pwd)
+
+    addlabelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
+    addlabelchoose='NULL'
+
+    for arg in $addlabelname
+    do
+        add_array_element 1 addlabelnamearray $arg
+    done
+
+#    echo ${addlabelnamearray[@]}
+    add_array_element 1 addlabelnamearray GLOBAL_PATH
+    add_array_element 1 addlabelnamearray NEW_LABEL
+
+    show_menu_and_get_choose addlabelnamearray 'Which label you want to add(or inpt q to quit):' addlabelchoose one
+#    echo $addlabelchoose
+
+    touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    _add_path_to_label $addlabelchoose $PWD_CCD
+    rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+    mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+
+    unset addlabelchoose
+    unset addlabelnamearray
+}
+
+function _show_help()
 {
     echo 'ccd -h:show the help'
     echo 'ccd -j:show the path you have gone'
     echo 'ccd -c:clean all the path you have gone'
-    echo 'ccd -g:show the path in ~/.ccdglobaltable'
-    echo 'ccd -w:open the ~/.ccdglobaltable'
+    echo 'ccd -g:show the path in .ccdglobaltable'
+    echo 'ccd -w:open the .ccdglobaltable'
+    echo 'ccd -l:show the label path'
+    echo 'ccd -a:add current dir to the .ccdglobaltable'
     return 0
 }
 
 CCD_TABLE_PATH='/home/Bin/ccd/'
 CCD_TABLE_NAME='.ccdglobaltable'
+CCD_TABLE_NAME_TMP='ccdglobaltable.tmp'
 CCD_TMP_PATH_NAME='seedcst.tmp'
 
 globalpath_choose="NULL"
@@ -530,8 +673,10 @@ case $1 in
      -l)
      _label_path
      ;;
+     -a)
+     _add_path
+     ;;
      *)
      _show_help
      ;;
 esac
-

@@ -593,6 +593,19 @@ function _add_path_to_all_label()
     done
 }
 
+
+function _add_path_to_new_label()
+{
+    local new_label
+    read -p "Please input the new label name:" new_label
+
+    # write config to the file
+    echo LABEL_PATH_NAME=$new_label >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+    echo $new_label'='$1 >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+    echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+    # write config to the file
+}
+
 # This function can add path to label
 # $1 which label you want to add
 # $2 the path
@@ -600,11 +613,22 @@ function _add_path_to_label()
 {
     if [ $1 == GLOBAL_PATH ]
     then
+        touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
         _add_path_to_global $2
         _add_path_to_all_label
+        rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+        mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
     else
-        _add_path_to_global
-        _add_path_to_all_label $1 $2
+        if [ $1 == NEW_LABEL ]
+        then
+            _add_path_to_new_label $2
+        else
+            touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+            _add_path_to_global
+            _add_path_to_all_label $1 $2
+            rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+            mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+        fi
     fi
 }
 
@@ -632,10 +656,7 @@ function _add_path()
     show_menu_and_get_choose addlabelnamearray 'Which label you want to add(or inpt q to quit):' addlabelchoose one
 #    echo $addlabelchoose
 
-    touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
     _add_path_to_label $addlabelchoose $PWD_CCD
-    rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
-    mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
 
     unset addlabelchoose
     unset addlabelnamearray

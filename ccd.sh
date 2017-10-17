@@ -1,67 +1,139 @@
-function num_charn_char()
+# this function will show_menu and return array lenght
+# $1 which array you whant to show
+function _show_menu_cst()
 {
-    case $1 in
-       "0")
+    local i=0
+    local rag
+
+    local array_name
+    local array_lenght
+    local array_numble
+
+    eval array_name=\${$1[@]}
+    eval array_lenght=\${\#$1[@]}
+    array_numble=$(expr ${array_lenght} - 1)
+
+    for rag in $array_name
+    do
+        echo " $i ${rag}"
+        let i++
+    done
+    return $array_lenght
+}
+
+# this function will return one or more choose and quit
+# $1 the choose range
+# $2 the choose will save this arguments
+# $3 if set one just return one choose if set more will return some choose
+function _get_choose_cst()
+{
+    local loopnum=0
+    local num
+    local num_array
+    local arg
+    local array_lenght=$1
+    local array_numble
+    local replace_num
+    array_numble=$(expr ${array_lenght} - 1)
+#    echo array_numble is $array_numble
+    if [ "$3" == 'one' ]
+    then
+        read -p "please enter the num(or q to quit):" num
+        if [ "$num" == q ]
+        then
+            eval $2=$num
+            return 0
+        fi
+        while [ $loopnum -eq 0 ]
+        do
+            if echo $num | grep -q '^[0-9]\+$'
+            then
+                if [ $num -lt 0 -o $num -ge $array_lenght ]
+                then
+                    read -p "Please input numble 0~$array_numble(or q to quit):" num
+                    if [ "$num" == "q" ]
+                    then
+                        eval $2=$num
+                        return 0
+                    fi
+                else
+                    eval $2=$num
+                    return 0
+                fi
+            else
+                read -p "Please input numble 0~$array_numble(or q to quit):" num
+                if [ "$num" == q ]
+                then
+                    eval $2=$num
+                    return 0
+                fi
+            fi
+        done
+    else
+        read -p "Please input at least one choose(or q to quit):" num_array
+        if [ "$num_array" == q ]
+        then
+            eval $2=$num_array
+            return 0
+        fi
+        while [ $loopnum -eq 0 ]
+        do
+            loopnum=1
+            for arg in $num_array
+            do
+                if echo $arg | grep -q '^[0-9]\+$'
+                then
+                    if [ $arg -lt 0 -o $arg -ge $array_lenght ]
+                    then
+                        echo "You have a num $arg not in arng!"
+                        echo -n "Please input numble 0~$array_numble>>"
+                        read replace_num
+                        eval num_array="\${num_array/$arg/$replace_num}"
+                        echo you have input $replace_num to replace $arg!
+                        echo input numble is $num_array
+                        loopnum=0
+                    fi
+                else
+                    echo "You input have a not num $arg!"
+                    echo -n "Please input numble 0~$array_numble>>"
+                    read replace_num
+                    eval num_array="\${num_array/$arg/$replace_num}"
+                    echo you have input $replace_num to replace $arg!
+                    echo input numble is $num_array
+                    loopnum=0
+                fi
+            done
+        done
+        eval $2=\"$num_array\"
         return 0
-        ;;
-       "1")
-        return 0
-        ;;
-        "2")
-        return 0
-        ;;
-        "3")
-        return 0
-        ;;
-        "4")
-        return 0
-        ;;
-        "5")
-        return 0
-        ;;
-        "6")
-        return 0
-        ;;
-        "7")
-        return 0
-        ;;
-        "8")
-        return 0
-        ;;
-        "9")
-        return 0
-        ;;
-        "q")
-        return 0
-        ;;
-        *)
-        return 1
-        ;;
-    esac
+    fi
 }
 
 function _popd_dir_cst()
 {
-    declare -a dirarry
-    dirrarry_count_cst=0
-    dirrarry_lengh=0
+    local dirarray
+    declare -a dirarray
+    local arg
+    local count
+    local dirrarry_count_cst=0
+    local dirrarry_lengh=0
     dirrarry=()
-    for arg in `dirs`
+    for arg in $(dirs)
     do
-        dirarry[dirrarry_count_cst]=$arg
+        dirarray[dirrarry_count_cst]=$arg
         let dirrarry_count_cst++
     done
-    dirrarry_lengh=${#dirarry[@]}
-    for ((i=1;i<$dirrarry_lengh;i++))
-    do 
-        if [ ${dirarry[0]} == ${dirarry[i]} ]
+    dirrarry_lengh=${#dirarray[@]}
+    for ((count=1;count<$dirrarry_lengh;count++))
+    do
+        if [ ${dirarray[0]} == ${dirarray[count]} ]
         then
-            popd +$i > /dev/null
+            popd +$count > /dev/null
         fi
     done
     dirrarry_count_cst=0
-    for arg in `dirs`
-    do 
+    for arg in $(dirs)
+    do
         dirrarry[dirrarry_count_cst]=$arg
         let dirrarry_count_cst++
     done
@@ -74,34 +146,39 @@ function _popd_dir_cst()
 
 function _cd_cst()
 {
-    now_pwd_cst=$PWD
     pushd $1 > /dev/null
     _popd_dir_cst
 }
 
+
 function _dir_jump()
 {
-    input=
-    echo Which dir you want to jump!
-    echo Or Input q to quit!
-    dirs -l -p -v
-    until (num_charn_char $input;)
+    local arg
+    local dirsarray
+    local dirsarray_num=0
+    declare -a dirsarray
+    local reback_choose
+
+    for arg in $(dirs -l)
     do
-        read -p "Please input you choose:" input
+        eval dirsarray[$dirsarray_num]=$arg
+        let dirsarray_num++
     done
-    if [ $input == "q" ]
+
+    _show_menu_cst dirsarray
+    _get_choose_cst $dirsarray_num reback_choose one
+    if [ $reback_choose == "q" ]
     then
-        echo you choose quit!
-    else 
-        echo you choose $input!
-        pushd +$input > /dev/null
+        echo You choose quit , exit now!
+    else
+        pushd +$reback_choose > /dev/null
     fi
 }
 
 function _clean_dir()
 {
     dirs -c
-    echo all the dir record have clean!
+    echo All the dir record have clean!
 }
 
 

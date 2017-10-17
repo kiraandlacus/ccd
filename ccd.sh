@@ -104,42 +104,17 @@ function _clean_dir()
     echo all the dir record have clean!
 }
 
-#这里还有bug，不过现在暂时不改了
-function _global_path()
-{
-    if [ -e ~/.ccdglobaltable ]
-    then
-        declare -a globalarry
-        local i=0
-        for rag in `cat ~/.ccdglobaltable`
-        do
-            globalarry[i]=$rag
-            let i++
-        done
-    else
-        echo Here has no ccdglobaltable!
-        touch ~/.ccdglobaltable
-        echo Have creat ccdgloblatable!
-    fi
-    echo Which path you choose?
-    for (( i=0; i < ${#globalarry[@]};i++ ))
-    do
-        echo $i ${globalarry[i]}
-    done
-    read -p "Please input you choose:" input
-    echo You choose is $input
-    _cd_cst ${globalarry[${input}]}
-}
 
 function ccd()
 {
     local jump_path='NULL'
-    CCD_TABLE_PATH="/home/Bin/ccd/"
-    CCD_PROGRAM_NAME="ccdsource.sh"
-    CCD_TMP_PATH_NAME="seedcst.tmp"
+    local CCD_TABLE_PATH="/home/Bin/ccd/"
+    local CCD_PROGRAM_NAME="ccdsource.sh"
+    local CCD_TMP_PATH_NAME="seedcst.tmp"
+    local CCD_TABLE_NAME=".ccdglobaltable"
 case $1 in
      -h)
-     . ${CCD_TABLE_PATH}${CCD_PROGRAM_NAME} -h
+     eval ${CCD_TABLE_PATH}${CCD_PROGRAM_NAME} -h
      ;;
      -j)
      _dir_jump
@@ -148,7 +123,7 @@ case $1 in
      _clean_dir
      ;;
      -w)
-     . ${CCD_TABLE_PATH}${CCD_PROGRAM_NAME} -w
+     eval vim ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
      ;;
      -g)
      ${CCD_TABLE_PATH}${CCD_PROGRAM_NAME} -g
@@ -174,7 +149,4 @@ case $1 in
      *)
      _cd_cst $1
 esac
-    unset CCD_TABLE_PATH
-    unset CCD_PROGRAM_NAME
-    unset CCD_TMP_PATH_NAME
 }

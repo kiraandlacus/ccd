@@ -625,8 +625,6 @@ function _add_or_rm_path_to_other_label()
     local arg
     local arg2
 
-    echo 1 $1 2 $2 3 $3 "#" $#
-
     labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
 
     if [ $# -eq 0 ]
@@ -660,7 +658,7 @@ function _add_or_rm_path_to_other_label()
 
                     for arg2 in $labelpath
                     do
-                        add_array_element 1 labelpatharray $arg
+                        add_array_element 1 labelpatharray $arg2
                     done
 
                     if [ ${#labelpatharray[@]} -eq 0 ]
@@ -717,37 +715,39 @@ function _add_new_label()
 function _remove_label()
 {
     local labelname
-    local labelpath
+    local labelnamearray
+    local -a labelnamearray
+    local labelname_choose
     local arg
-    local arg2
+
+    _add_or_rm_path_to_global
+    _add_or_rm_path_to_other_label
 
     labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
     for arg in $labelname
     do
-        labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
-        for arg2 in $labelpath
-        do
-            echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
-        done
-
-        if [ $# != 0 ]
-        then
-            if [ $1 == $arg ]
-            then
-                echo $1'='$2 >> ${CCD_TABLE_PATH}${arg}
-            fi
-        fi
+        add_array_element 1 labelnamearray $arg
     done
+
+    if [ ${#labelnamearray[@]} -eq 0 ]
+    then
+        echo Here has no label!
+        continue
+    fi
+
+    show_menu_and_get_choose labelnamearray "Which label you want to remove(or input q to quit):" labelname_choose one
+
+    rm ${CCD_TABLE_PATH}${labelname_choose}
 }
 
 # This function can add path to label
-# $1 which label you want to add
-# $2 the path
+# $1 set -a or -r
+# $2 which label you want to add or remove
+# $3 the path
 function _add_or_rm_path_to_label()
 {
     if [ $1 == "-a" ]
     then
-        echo here -a
         if [ $2 == GLOBAL_PATH ]
         then
             _split_label_table
@@ -766,7 +766,6 @@ function _add_or_rm_path_to_label()
             fi
         fi
     else
-        echo here -r
         if [ $2 == GLOBAL_PATH ]
         then
             _split_label_table
@@ -777,7 +776,6 @@ function _add_or_rm_path_to_label()
             if [ $2 == REMOVE_LABEL ]
             then
                 _split_label_table
-                _add_or_rm_path_to_global
                 _remove_label
                 _merge_label_table
             else

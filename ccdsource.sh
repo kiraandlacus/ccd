@@ -275,11 +275,6 @@ function add_array_element()
     return 0
 }
 
-function _clean_dir_CST()
-{
-    dirs -c
-    echo all the dir record have clean!
-}
 
 # this function need 2 arguments,one is array,one is num
 # the function will change the num to the value by array
@@ -496,11 +491,55 @@ function _tmp_path()
     echo $1 >> ${CCD_TABLE_PATH}${CCD_TMP_PATH_NAME}
 }
 
-function _write_table_path
+
+function _write_table_path()
 {
     eval vim ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
 }
 
+
+function _split_label_table()
+{
+    local labelname
+
+    touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    touch ${CCD_TABLE_PATH}GLOBAL_PATH
+
+    labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
+    for arg in $labelname
+    do
+        touch ${CCD_TABLE_PATH}${arg}
+    done
+}
+
+
+function _merge_label_table()
+{
+    local labelname
+    local arg
+
+    echo '# Here is to set the global path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    echo 'GLOBAL_PATH=LABEL_PATH' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    sort -bd ${CCD_TABLE_PATH}GLOBAL_PATH | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    rm ${CCD_TABLE_PATH}GLOBAL_PATH
+
+    echo '# Here is to set the label path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
+    for arg in $labelname
+    do
+        if [ -e ${CCD_TABLE_PATH}$arg ]
+        then
+            echo LABEL_PATH_NAME=$arg >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+            sort -bd ${CCD_TABLE_PATH}${arg} | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+            echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+            rm ${CCD_TABLE_PATH}$arg
+        fi
+    done
+
+    rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+    mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+}
 
 # $1 if set,$1 will add to globalpath
 # $1 if not set, globalpath just sort
@@ -509,7 +548,6 @@ function _add_path_to_global()
     local globalpath
     local arg
 
-    touch ${CCD_TABLE_PATH}GLOBAL_PATH
 
     if [ $# != 0 ]
     then
@@ -523,11 +561,7 @@ function _add_path_to_global()
         done
 
         # write config to a tmp file
-        echo '# Here is to set the global path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
         echo 'GLOBAL_PATH='$1 >> ${CCD_TABLE_PATH}GLOBAL_PATH
-        echo 'GLOBAL_PATH=LABEL_PATH' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        sort -bd ${CCD_TABLE_PATH}GLOBAL_PATH | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
         # write config to a tmp file
 
     else
@@ -536,39 +570,27 @@ function _add_path_to_global()
         do
             if [ $arg != 'LABEL_PATH' ]
             then
+                # write config to a tmp fil
                 echo 'GLOBAL_PATH='$arg >> ${CCD_TABLE_PATH}GLOBAL_PATH
+                # write config to a tmp fil
             fi
         done
-
-        # write config to the tmp file
-        echo '# Here is to set the global path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        echo 'GLOBAL_PATH=LABEL_PATH' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        sort -bd ${CCD_TABLE_PATH}GLOBAL_PATH | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        # write config to the tmp file
-
     fi
-    rm ${CCD_TABLE_PATH}GLOBAL_PATH
 }
 
 # $1 if set,$1 will add to label
 # $1 if not set, label just sort
-function _add_path_to_all_label()
+function _add_path_to_other_label()
 {
     local labelname
     local labelpath
     local arg
-    local arg2
-    local arg3
-
-        # write config to the tmp file
-        echo '# Here is to set the label path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        # write config to the tmp file
+    local arg2 
 
     labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
     for arg in $labelname
     do
-        touch ${CCD_TABLE_PATH}${arg}
+#        touch ${CCD_TABLE_PATH}${arg}
         labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
         for arg2 in $labelpath
         do
@@ -583,13 +605,7 @@ function _add_path_to_all_label()
             fi
         fi
 
-        # write config to the tmp file
-        echo LABEL_PATH_NAME=$arg >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        sort -bd ${CCD_TABLE_PATH}${arg} | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        # write config to the tmp file
-
-        rm ${CCD_TABLE_PATH}${arg}
+#        rm ${CCD_TABLE_PATH}${arg}
     done
 }
 
@@ -613,21 +629,19 @@ function _add_path_to_label()
 {
     if [ $1 == GLOBAL_PATH ]
     then
-        touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+        _split_label_table
         _add_path_to_global $2
-        _add_path_to_all_label
-        rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
-        mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+        _add_path_to_other_label
+        _merge_label_table
     else
         if [ $1 == NEW_LABEL ]
         then
             _add_path_to_new_label $2
         else
-            touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+            _split_label_table
             _add_path_to_global
-            _add_path_to_all_label $1 $2
-            rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
-            mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+            _add_path_to_other_label $1 $2
+            _merge_label_table
         fi
     fi
 }

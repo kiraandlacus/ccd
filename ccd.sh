@@ -223,6 +223,9 @@ case $1 in
      -a)
      ${CCD_TABLE_PATH}${CCD_PROGRAM_NAME} -a
      ;;
+     -r)
+     ${CCD_TABLE_PATH}${CCD_PROGRAM_NAME} -r
+     ;;
      *)
      _cd_cst $1
 esac

@@ -614,9 +614,107 @@ function _add_or_rm_path_to_global()
      esac
 }
 
-# $1 if set,$1 will add to label
+# $1 need set -a or -r
+# $1 if set -a,$3 will add to $2
+# $1 if set -r,$3 will remove from $2
 # $1 if not set, label just sort
 function _add_or_rm_path_to_other_label()
+{
+    local labelname
+    local labelpath
+    local arg
+    local arg2
+
+    echo 1 $1 2 $2 3 $3 "#" $#
+
+    labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
+
+    if [ $# -eq 0 ]
+    then
+        for arg in $labelname
+        do
+            labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
+            for arg2 in $labelpath
+            do
+                echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
+            done
+        done
+    else
+        for arg in $labelname
+        do
+            if [ $arg != $2 ]
+            then
+                labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
+                for arg2 in $labelpath
+                do
+                    echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
+                done
+            else
+                case $1 in
+                    "-r")
+                    local labelpatharray
+                    declare -a labelpatharray 
+                    local labelpath_choose
+
+                    labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
+
+                    for arg2 in $labelpath
+                    do
+                        add_array_element 1 labelpatharray $arg
+                    done
+
+                    if [ ${#labelpatharray[@]} -eq 0 ]
+                    then
+                        echo $arg has no path!
+                        continue
+                    fi
+
+                    show_menu_and_get_choose labelpatharray "Which path you want to remove(or input q to quit):" labelpath_choose one
+
+                    for arg2 in ${labelpatharray[@]}
+                    do
+                        if [ "$arg2" != "$labelpath_choose" ]
+                        then
+                            # write config to a tmp fil
+                            echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
+                            # write config to a tmp fil
+                        fi
+                    done
+                    ;;
+                    "-a")
+                    labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
+                    for arg2 in $labelpath
+                    do
+                        echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
+                    done
+
+                    echo $2'='$3 >> ${CCD_TABLE_PATH}${arg}
+
+                    ;;
+                    *)
+                        echo $1 Invalid arguments;Please input "-a" or "-r"!
+                    ;;
+                esac
+            fi
+         done
+    fi
+}
+
+
+function _add_new_label()
+{
+    local new_label
+    read -p "Please input the new label name:" new_label
+
+    # write config to the file
+    echo LABEL_PATH_NAME=$new_label >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+    echo $new_label'='$1 >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+    echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+    # write config to the file
+}
+
+
+function _remove_label()
 {
     local labelname
     local labelpath
@@ -642,19 +740,6 @@ function _add_or_rm_path_to_other_label()
     done
 }
 
-
-function _add_new_label()
-{
-    local new_label
-    read -p "Please input the new label name:" new_label
-
-    # write config to the file
-    echo LABEL_PATH_NAME=$new_label >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
-    echo $new_label'='$1 >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
-    echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
-    # write config to the file
-}
-
 # This function can add path to label
 # $1 which label you want to add
 # $2 the path
@@ -675,8 +760,8 @@ function _add_or_rm_path_to_label()
                 _add_new_label $3
             else
                 _split_label_table
-                _add_or_rm_path_to_global $1
-                _add_or_rm_path_to_other_label $2 $3
+                _add_or_rm_path_to_global
+                _add_or_rm_path_to_other_label $1 $2 $3
                 _merge_label_table
             fi
         fi
@@ -691,11 +776,14 @@ function _add_or_rm_path_to_label()
         else
             if [ $2 == REMOVE_LABEL ]
             then
-                _add_new_label $3
+                _split_label_table
+                _add_or_rm_path_to_global
+                _remove_label
+                _merge_label_table
             else
                 _split_label_table
                 _add_or_rm_path_to_global
-                _add_or_rm_path_to_other_label $2 $3
+                _add_or_rm_path_to_other_label $1 $2
                 _merge_label_table
             fi
         fi
@@ -754,6 +842,7 @@ function _show_help()
     echo 'ccd -w:open the .ccdglobaltable'
     echo 'ccd -l:show the label path'
     echo 'ccd -a:add current dir to the .ccdglobaltable'
+    echo 'ccd -r:remove dir from the .ccdglobaltable'
     return 0
 }
 

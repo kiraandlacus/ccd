@@ -111,26 +111,29 @@ function _get_choose_cst()
 
 function _popd_dir_cst()
 {
-    local dirarry
-    declare -a dirarry
-    dirrarry_count_cst=0
-    dirrarry_lengh=0
+    local dirarray
+    declare -a dirarray
+    local arg
+    local count
+    local dirrarry_count_cst=0
+    local dirrarry_lengh=0
+
     dirrarry=()
     for arg in $(dirs)
     do
-        dirarry[dirrarry_count_cst]=$arg
+        dirarray[dirrarry_count_cst]=$arg
         let dirrarry_count_cst++
     done
-    dirrarry_lengh=${#dirarry[@]}
-    for ((i=1;i<$dirrarry_lengh;i++))
+    dirrarry_lengh=${#dirarray[@]}
+    for ((count=1;count<$dirrarry_lengh;count++))
     do
-        if [ ${dirarry[0]} == ${dirarry[i]} ]
+        if [ ${dirarray[0]} == ${dirarray[count]} ]
         then
-            popd +$i > /dev/null
+            popd +$count > /dev/null
         fi
     done
     dirrarry_count_cst=0
-    for arg in `dirs`
+    for arg in $(dirs)
     do
         dirrarry[dirrarry_count_cst]=$arg
         let dirrarry_count_cst++
@@ -144,7 +147,6 @@ function _popd_dir_cst()
 
 function _cd_cst()
 {
-    now_pwd_cst=$PWD
     pushd $1 > /dev/null
     _popd_dir_cst
 }
@@ -221,6 +223,9 @@ case $1 in
      ;;
      -a)
      ${CCD_TABLE_PATH}${CCD_PROGRAM_NAME} -a
+     ;;
+     -r)
+     ${CCD_TABLE_PATH}${CCD_PROGRAM_NAME} -r
      ;;
      *)
      _cd_cst $1

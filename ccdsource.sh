@@ -211,6 +211,9 @@ function get_table_value()
     echo $value
 }
 
+
+
+
 function add_array_element()
 {
     local arg
@@ -275,11 +278,6 @@ function add_array_element()
     return 0
 }
 
-function _clean_dir_CST()
-{
-    dirs -c
-    echo all the dir record have clean!
-}
 
 # this function need 2 arguments,one is array,one is num
 # the function will change the num to the value by array
@@ -496,105 +494,212 @@ function _tmp_path()
     echo $1 >> ${CCD_TABLE_PATH}${CCD_TMP_PATH_NAME}
 }
 
-function _write_table_path
+
+function _write_table_path()
 {
     eval vim ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
 }
 
 
-# $1 if set,$1 will add to globalpath
-# $1 if not set, globalpath just sort
-function _add_path_to_global()
-{
-    local globalpath
-    local arg
-
-    touch ${CCD_TABLE_PATH}GLOBAL_PATH
-
-    if [ $# != 0 ]
-    then
-        globalpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} GLOBAL_PATH)
-        for arg in $globalpath
-        do
-            if [ $arg != 'LABEL_PATH' ]
-            then
-                echo 'GLOBAL_PATH='$arg >> ${CCD_TABLE_PATH}GLOBAL_PATH
-            fi
-        done
-
-        # write config to a tmp file
-        echo '# Here is to set the global path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        echo 'GLOBAL_PATH='$1 >> ${CCD_TABLE_PATH}GLOBAL_PATH
-        echo 'GLOBAL_PATH=LABEL_PATH' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        sort -bd ${CCD_TABLE_PATH}GLOBAL_PATH | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        # write config to a tmp file
-
-    else
-        globalpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} GLOBAL_PATH)
-        for arg in $globalpath
-        do
-            if [ $arg != 'LABEL_PATH' ]
-            then
-                echo 'GLOBAL_PATH='$arg >> ${CCD_TABLE_PATH}GLOBAL_PATH
-            fi
-        done
-
-        # write config to the tmp file
-        echo '# Here is to set the global path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        echo 'GLOBAL_PATH=LABEL_PATH' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        sort -bd ${CCD_TABLE_PATH}GLOBAL_PATH | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        # write config to the tmp file
-
-    fi
-    rm ${CCD_TABLE_PATH}GLOBAL_PATH
-}
-
-# $1 if set,$1 will add to label
-# $1 if not set, label just sort
-function _add_path_to_all_label()
+function _split_label_table()
 {
     local labelname
-    local labelpath
-    local arg
-    local arg2
-    local arg3
 
-        # write config to the tmp file
-        echo '# Here is to set the label path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        # write config to the tmp file
+    touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    touch ${CCD_TABLE_PATH}GLOBAL_PATH
 
     labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
     for arg in $labelname
     do
         touch ${CCD_TABLE_PATH}${arg}
-        labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
-        for arg2 in $labelpath
-        do
-            echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
-        done
-
-        if [ $# != 0 ]
-        then
-            if [ $1 == $arg ]
-            then
-                echo $1'='$2 >> ${CCD_TABLE_PATH}${arg}
-            fi
-        fi
-
-        # write config to the tmp file
-        echo LABEL_PATH_NAME=$arg >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        sort -bd ${CCD_TABLE_PATH}${arg} | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        # write config to the tmp file
-
-        rm ${CCD_TABLE_PATH}${arg}
     done
 }
 
 
-function _add_path_to_new_label()
+function _merge_label_table()
+{
+    local labelname
+    local arg
+
+    echo '# Here is to set the global path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    echo 'GLOBAL_PATH=LABEL_PATH' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    sort -bd ${CCD_TABLE_PATH}GLOBAL_PATH | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    rm ${CCD_TABLE_PATH}GLOBAL_PATH
+
+    echo '# Here is to set the label path' >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+    labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
+    for arg in $labelname
+    do
+        if [ -e ${CCD_TABLE_PATH}$arg ]
+        then
+            echo LABEL_PATH_NAME=$arg >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+            sort -bd ${CCD_TABLE_PATH}${arg} | uniq >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+            echo  >> ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
+            rm ${CCD_TABLE_PATH}$arg
+        fi
+    done
+
+    rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+    mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+}
+
+# $1 if set -a,$2 will add to globalpath
+# $1 if set -r,will show the path and rm
+# $2 in add modle,$2 will add to globalpath
+# if $1 $2 all did't set,this function just split to tmp file 
+function _add_or_rm_path_to_global()
+{
+    local globalpath
+    local arg
+
+    globalpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} GLOBAL_PATH) 
+
+    case $1 in
+        "-r")
+        if [ "$globalpath" == "LABEL_PATH" ]
+        then
+            echo GLOBAL_PATH has no path!
+            return 1
+        fi
+
+        local globalpatharray
+        declare -a globalpatharray
+        local globalpath_choose
+
+        for arg in $globalpath
+        do
+            if [ "$arg" != 'LABEL_PATH' ]
+            then
+                add_array_element 1 globalpatharray $arg
+            fi
+        done
+
+        show_menu_and_get_choose globalpatharray "Which path you want to remove(or input q to quit):" globalpath_choose one
+
+        for arg in ${globalpatharray[@]}
+        do
+            if [ "$arg" != "$globalpath_choose" ]
+            then
+                # write config to a tmp fil
+                echo 'GLOBAL_PATH='$arg >> ${CCD_TABLE_PATH}GLOBAL_PATH
+                # write config to a tmp fil
+            fi
+        done
+        ;;
+        "-a")
+        for arg in $globalpath
+        do
+            if [ $arg != 'LABEL_PATH' ]
+            then
+                # write config to a tmp fil
+                echo 'GLOBAL_PATH='$arg >> ${CCD_TABLE_PATH}GLOBAL_PATH
+                # write config to a tmp fil
+            fi
+        done
+
+        echo 'GLOBAL_PATH='$2 >> ${CCD_TABLE_PATH}GLOBAL_PATH
+        ;;
+        *)
+        for arg in $globalpath
+        do
+            if [ $arg != 'LABEL_PATH' ]
+            then
+                # write config to a tmp fil
+                echo 'GLOBAL_PATH='$arg >> ${CCD_TABLE_PATH}GLOBAL_PATH
+                # write config to a tmp fil
+            fi
+        done
+        ;;
+     esac
+}
+
+# $1 need set -a or -r
+# $1 if set -a,$3 will add to $2
+# $1 if set -r,$3 will remove from $2
+# $1 if not set, label just sort
+function _add_or_rm_path_to_other_label()
+{
+    local labelname
+    local labelpath
+    local arg
+    local arg2
+
+    labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
+
+    if [ $# -eq 0 ]
+    then
+        for arg in $labelname
+        do
+            labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
+            for arg2 in $labelpath
+            do
+                echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
+            done
+        done
+    else
+        for arg in $labelname
+        do
+            if [ $arg != $2 ]
+            then
+                labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
+                for arg2 in $labelpath
+                do
+                    echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
+                done
+            else
+                case $1 in
+                    "-r")
+                    local labelpatharray
+                    declare -a labelpatharray 
+                    local labelpath_choose
+
+                    labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
+
+                    for arg2 in $labelpath
+                    do
+                        add_array_element 1 labelpatharray $arg2
+                    done
+
+                    if [ ${#labelpatharray[@]} -eq 0 ]
+                    then
+                        echo $arg has no path!
+                        continue
+                    fi
+
+                    show_menu_and_get_choose labelpatharray "Which path you want to remove(or input q to quit):" labelpath_choose one
+
+                    for arg2 in ${labelpatharray[@]}
+                    do
+                        if [ "$arg2" != "$labelpath_choose" ]
+                        then
+                            # write config to a tmp fil
+                            echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
+                            # write config to a tmp fil
+                        fi
+                    done
+                    ;;
+                    "-a")
+                    labelpath=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} ${arg})
+                    for arg2 in $labelpath
+                    do
+                        echo $arg'='$arg2 >> ${CCD_TABLE_PATH}${arg}
+                    done
+
+                    echo $2'='$3 >> ${CCD_TABLE_PATH}${arg}
+
+                    ;;
+                    *)
+                        echo $1 Invalid arguments;Please input "-a" or "-r"!
+                    ;;
+                esac
+            fi
+         done
+    fi
+}
+
+
+function _add_new_label()
 {
     local new_label
     read -p "Please input the new label name:" new_label
@@ -606,60 +711,124 @@ function _add_path_to_new_label()
     # write config to the file
 }
 
-# This function can add path to label
-# $1 which label you want to add
-# $2 the path
-function _add_path_to_label()
+
+function _remove_label()
 {
-    if [ $1 == GLOBAL_PATH ]
+    local labelname
+    local labelnamearray
+    local -a labelnamearray
+    local labelname_choose
+    local arg
+
+    _add_or_rm_path_to_global
+    _add_or_rm_path_to_other_label
+
+    labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
+    for arg in $labelname
+    do
+        add_array_element 1 labelnamearray $arg
+    done
+
+    if [ ${#labelnamearray[@]} -eq 0 ]
     then
-        touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-        _add_path_to_global $2
-        _add_path_to_all_label
-        rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
-        mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
-    else
-        if [ $1 == NEW_LABEL ]
+        echo Here has no label!
+        continue
+    fi
+
+    show_menu_and_get_choose labelnamearray "Which label you want to remove(or input q to quit):" labelname_choose one
+
+    rm ${CCD_TABLE_PATH}${labelname_choose}
+}
+
+# This function can add path to label
+# $1 set -a or -r
+# $2 which label you want to add or remove
+# $3 the path
+function _add_or_rm_path_to_label()
+{
+    if [ $1 == "-a" ]
+    then
+        if [ $2 == GLOBAL_PATH ]
         then
-            _add_path_to_new_label $2
+            _split_label_table
+            _add_or_rm_path_to_global $1 $3
+            _add_or_rm_path_to_other_label
+            _merge_label_table
         else
-            touch ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP}
-            _add_path_to_global
-            _add_path_to_all_label $1 $2
-            rm ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
-            mv ${CCD_TABLE_PATH}${CCD_TABLE_NAME_TMP} ${CCD_TABLE_PATH}${CCD_TABLE_NAME}
+            if [ $2 == NEW_LABEL ]
+            then
+                _add_new_label $3
+            else
+                _split_label_table
+                _add_or_rm_path_to_global
+                _add_or_rm_path_to_other_label $1 $2 $3
+                _merge_label_table
+            fi
+        fi
+    else
+        if [ $2 == GLOBAL_PATH ]
+        then
+            _split_label_table
+            _add_or_rm_path_to_global $1
+            _add_or_rm_path_to_other_label
+            _merge_label_table
+        else
+            if [ $2 == REMOVE_LABEL ]
+            then
+                _split_label_table
+                _remove_label
+                _merge_label_table
+            else
+                _split_label_table
+                _add_or_rm_path_to_global
+                _add_or_rm_path_to_other_label $1 $2
+                _merge_label_table
+            fi
         fi
     fi
 }
 
-function _add_path()
+function _add_or_rm_path()
 {
-    declare -a addlabelnamearray
+    case $1 in
+        "-a")
+        ;;
+        "-r")
+        ;;
+        *)
+        echo $1 Invalid arguments;Please input "-a" or "-r"!
+        ;;
+    esac
 
-    local addlabelname
+    local labelnamearray
+    declare -a labelnamearray
+    local labelchoose
+
+    local labelname
     local arg
     local PWD_CCD
     PWD_CCD=$(pwd)
 
-    addlabelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
-    addlabelchoose='NULL'
+    labelname=$(get_table_value ${CCD_TABLE_PATH}${CCD_TABLE_NAME} LABEL_PATH_NAME)
+    labelchoose='NULL'
 
-    for arg in $addlabelname
+    for arg in $labelname
     do
-        add_array_element 1 addlabelnamearray $arg
+        add_array_element 1 labelnamearray $arg
     done
 
-#    echo ${addlabelnamearray[@]}
-    add_array_element 1 addlabelnamearray GLOBAL_PATH
-    add_array_element 1 addlabelnamearray NEW_LABEL
-
-    show_menu_and_get_choose addlabelnamearray 'Which label you want to add(or inpt q to quit):' addlabelchoose one
-#    echo $addlabelchoose
-
-    _add_path_to_label $addlabelchoose $PWD_CCD
-
-    unset addlabelchoose
-    unset addlabelnamearray
+    if [ "$1" == "-a" ]
+    then
+        add_array_element 1 labelnamearray GLOBAL_PATH
+        add_array_element 1 labelnamearray NEW_LABEL
+        show_menu_and_get_choose labelnamearray 'Which label you want to add(or inpt q to quit):' labelchoose one
+        _add_or_rm_path_to_label $1 $labelchoose $PWD_CCD
+    else
+        add_array_element 1 labelnamearray GLOBAL_PATH
+        add_array_element 1 labelnamearray REMOVE_LABEL
+        show_menu_and_get_choose labelnamearray 'Which label you want to remove(or inpt q to quit):' labelchoose one
+        _add_or_rm_path_to_label $1 $labelchoose
+    fi
 }
 
 function _show_help()
@@ -671,6 +840,7 @@ function _show_help()
     echo 'ccd -w:open the .ccdglobaltable'
     echo 'ccd -l:show the label path'
     echo 'ccd -a:add current dir to the .ccdglobaltable'
+    echo 'ccd -r:remove dir from the .ccdglobaltable'
     return 0
 }
 
@@ -695,7 +865,10 @@ case $1 in
      _label_path
      ;;
      -a)
-     _add_path
+     _add_or_rm_path -a
+     ;;
+     -r)
+     _add_or_rm_path -r
      ;;
      *)
      _show_help

@@ -117,6 +117,7 @@ function _popd_dir_cst()
     local count
     local dirrarry_count_cst=0
     local dirrarry_lengh=0
+
     dirrarry=()
     for arg in $(dirs)
     do
